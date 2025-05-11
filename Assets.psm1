@@ -45,14 +45,15 @@ function font ($newcolour) {[console]::foregroundcolor = "$newcolour"}
 if ($resourcetype -notmatch "(?i)^(cmd|script)$" -and $action -notmatch "(?i)^(view|edit)$") {Write-Host -f cyan "`nUsage: assets `"cmd/script`" `"view/edit`" `"resource`"`n"; return}
 
 # Script path completion
-if ($resourcetype -eq "script" -and $resource.length -ge 1 -and -not (Test-Path $resource -PathType Leaf)) {$match = Get-ChildItem -Path $powershell -Recurse -File | Where-Object { $_.BaseName -ieq $resource -and $_.Extension -in '.ps1', '.psm1' } | Select-Object -First 1 -ExpandProperty FullName
+if ($resourcetype -eq "script" -and $resource.length -ge 1 -and -not (Test-Path $resource -PathType Leaf)) {$match = Get-ChildItem -Path $powershell -Recurse -File | Where-Object {$_.BaseName -ieq $resource -and $_.Extension -in '.ps1', '.psm1', '.psd1'} | Select-Object -First 1 -ExpandProperty FullName
 if ($match) {$resource = $match}
 else {Write-Host -f yellow "`nUnable to locate a script with the name $resource`n"; return}}
 
 # View scripts, whether specified or blank.
-if ($resourcetype -eq "script" -and $action -eq "view") {if (-not $resource) {Write-Host -ForegroundColor Yellow "`nAvailable Scripts:`n"; $ScriptFiles = Get-ChildItem -Path $powershell -Recurse | Where-Object {$_.Name -match '(?i)\.psm?1$'}
+if ($resourcetype -eq "script" -and $action -eq "view") {if (-not $resource) {Write-Host -ForegroundColor Yellow "`nAvailable Scripts:`n"; $ScriptFiles = Get-ChildItem -Path $powershell -Recurse | Where-Object {$_.Name -match '(?i)\.ps[dm]?1$'}
 $ScriptFiles | ForEach-Object {$index = [Array]::IndexOf($ScriptFiles, $_) + 1; Write-Host -NoNewline "$index. " -ForegroundColor Cyan
 if ($_.FullName.Substring($powershell.Length + 1) -match "(?i)\.psm1$") {Write-Host ($_.FullName.Substring($powershell.Length + 1)) -ForegroundColor DarkCyan}
+elseif ($_.FullName.Substring($powershell.Length + 1) -match "(?i)\.psd1$") {Write-Host ($_.FullName.Substring($powershell.Length + 1)) -ForegroundColor DarkGray}
 else {Write-Host ($_.FullName.Substring($powershell.Length + 1)) -ForegroundColor White}}
 ""; Write-Host -f white "Select a script to " -NoNewLine; font green; $selection = Read-Host "VIEW"; font gray
 if ($selection -notmatch "^\d+$") {""; return}
@@ -69,7 +70,7 @@ switch -Regex ($input) {'^(?i)q$' {font gray; ""; return}; '^(?i)a$' {$pauseAfte
 font gray; Write-Host -f Yellow ("-"*100); ""; return}
 
 # View commands menu.
-if ($resourcetype -eq "cmd" -and $action -eq "view" -and $resource.length -le 1) {Write-Host -f yellow "`nAvailable Functions`n"; $functions = Get-Command -CommandType Function; $filtered = $functions | Where-Object {$_.ScriptBlock.File -like "*Users*"}; $filtered | ForEach-Object {Write-Host -f cyan "$($filtered.IndexOf($_) + 1). " -NoNewLine; Write-Host -f white "$($_.Name)" }; Write-Host -f white "`nSelect a function to " -NoNewLine; font green; $selection = Read-Host "VIEW"; font gray
+if ($resourcetype -eq "cmd" -and $action -eq "view" -and $resource.length -le 1) {Write-Host -f yellow "`nAvailable Functions`n"; $functions = Get-Command -CommandType Function; $filtered = $functions | Where-Object {$_.ScriptBlock.File -like "*Users*"}; $filtered | ForEach-Object {Write-Host -f cyan "$($filtered.IndexOf($_) + 1). " -NoNewLine; Write-Host -f white "$($_.Name)"}; Write-Host -f white "`nSelect a function to " -NoNewLine; font green; $selection = Read-Host "VIEW"; font gray
 while ($selection -ne "Q") {if ($selection -match '^\d{1,2}$') {$index = [int]$selection; if ($index -gt 0 -and $index -le $filtered.Count) {$function = $filtered[$index - 1].Name; details $function; ""; return}
 else {""; return}} else {""; return}};"" ; return}
 
@@ -77,7 +78,7 @@ else {""; return}} else {""; return}};"" ; return}
 if ($resourcetype -eq "cmd" -and $action -eq "view" -and (Get-Command $resource -ErrorAction SilentlyContinue)) {""; details $resource; return}
 
 # Edit commands menu.
-if ($resourcetype -eq "cmd" -and $action -eq "edit" -and $resource.length -le 1) {Write-Host -f yellow "`nAvailable Functions`n"; $functions = Get-Command -CommandType Function; $filtered = $functions | Where-Object {$_.ScriptBlock.File -like "*Users*"}; $filtered | ForEach-Object {$i = $filtered.IndexOf($_) + 1; $mod = if ($_.Module) { $_.Module.Name.ToUpper() } else { "PROFILE" }; Write-Host -f cyan "$i. " -NoNewLine; Write-Host -f darkcyan "$mod\" -NoNewLine; Write-Host -f white "$($_.Name)"}; Write-Host -f white "`nSelect a function parent file to " -NoNewLine; font red; $selection = Read-Host "EDIT"; font gray
+if ($resourcetype -eq "cmd" -and $action -eq "edit" -and $resource.length -le 1) {Write-Host -f yellow "`nAvailable Functions`n"; $functions = Get-Command -CommandType Function; $filtered = $functions | Where-Object {$_.ScriptBlock.File -like "*Users*"}; $filtered | ForEach-Object {$i = $filtered.IndexOf($_) + 1; $mod = if ($_.Module) {$_.Module.Name.ToUpper()} else {"PROFILE"}; Write-Host -f cyan "$i. " -NoNewLine; Write-Host -f darkcyan "$mod\" -NoNewLine; Write-Host -f white "$($_.Name)"}; Write-Host -f white "`nSelect a function parent file to " -NoNewLine; font red; $selection = Read-Host "EDIT"; font gray
 while ($selection -ne "Q") {if ($selection -match '^\d{1,2}$') {$index = [int]$selection; if ($index -gt 0 -and $index -le $filtered.Count) {$filePath = $filtered[$index - 1].ScriptBlock.File; edit $filePath; ""; return}
 else {""; return}} else {""; return}}}
 
@@ -85,9 +86,10 @@ else {""; return}} else {""; return}}}
 if ($resourcetype -eq "cmd" -and $action -eq "edit" -and (Get-Command $resource -ErrorAction SilentlyContinue)) {$command = Get-Command $resource -CommandType Function -ErrorAction SilentlyContinue; $filepath = $command.ScriptBlock.File; if ($filepath.length -ge 1) {edit $filepath}; return}
 
 # Edit scripts menu.
-if ($resourcetype -eq "script" -and $action -eq "edit" -and -not (Test-Path $resource -PathType Leaf)) {Write-Host -ForegroundColor Yellow "`nAvailable Scripts:`n"; $ScriptFiles = Get-ChildItem -Path $powershell -Recurse | Where-Object { $_.Name -match '(?i)\.psm?1$' }
+if ($resourcetype -eq "script" -and $action -eq "edit" -and -not (Test-Path $resource -PathType Leaf)) {Write-Host -ForegroundColor Yellow "`nAvailable Scripts:`n"; $ScriptFiles = Get-ChildItem -Path $powershell -Recurse | Where-Object {$_.Name -match '(?i)\.ps[dm]?1$'}
 $ScriptFiles | ForEach-Object {$index = [Array]::IndexOf($ScriptFiles, $_) + 1; Write-Host -NoNewline "$index. " -ForegroundColor Cyan
 if ($($_.FullName.Substring($powershell.Length + 1)) -match "(?i)\.psm1$") {Write-Host $($_.FullName.Substring($powershell.Length + 1)) -ForegroundColor DarkCyan}
+elseif ($($_.FullName.Substring($powershell.Length + 1)) -match "(?i)\.psd1$") {Write-Host $($_.FullName.Substring($powershell.Length + 1)) -ForegroundColor DarkGray}
 else {Write-Host $($_.FullName.Substring($powershell.Length + 1)) -ForegroundColor White}}; ""
 Write-Host -f white "Select a script to " -NoNewLine; font red; $selection = Read-Host "EDIT"; font gray
 if ([int]$selection -gt 0 -and [int]$selection -le $ScriptFiles.Count) {$selectedFile = $ScriptFiles[$selection - 1]; edit $selectedFile.FullName}
