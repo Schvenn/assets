@@ -1,4 +1,4 @@
-# assets
+# Assets
 Powershell module to manage custom scripts and functions with several options to view and edit.
 
 This function allows you to manage custom user content in your PowerShell environment with a myriad of options:
