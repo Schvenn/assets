@@ -86,7 +86,7 @@ else {""; return}} else {""; return}}}
 if ($resourcetype -eq "cmd" -and $action -eq "edit" -and (Get-Command $resource -ErrorAction SilentlyContinue)) {$command = Get-Command $resource -CommandType Function -ErrorAction SilentlyContinue; $filepath = $command.ScriptBlock.File; if ($filepath.length -ge 1) {edit $filepath}; return}
 
 # Edit scripts menu.
-if ($resourcetype -eq "script" -and $action -eq "edit" -and -not (Test-Path $resource -PathType Leaf)) {Write-Host -ForegroundColor Yellow "`nAvailable Scripts:`n"; $ScriptFiles = Get-ChildItem -Path $powershell -Recurse | Where-Object {$_.Name -match '(?i)\.ps[dm]?1$'}
+if ($resourcetype -eq "script" -and $action -eq "edit" -and (($resource.length -le 1) -or (-not (Test-Path $resource -PathType Leaf)))) {Write-Host -ForegroundColor Yellow "`nAvailable Scripts:`n"; $ScriptFiles = Get-ChildItem -Path $powershell -Recurse | Where-Object {$_.Name -match '(?i)\.ps[dm]?1$'}
 $ScriptFiles | ForEach-Object {$index = [Array]::IndexOf($ScriptFiles, $_) + 1; Write-Host -NoNewline "$index. " -ForegroundColor Cyan
 if ($($_.FullName.Substring($powershell.Length + 1)) -match "(?i)\.psm1$") {Write-Host $($_.FullName.Substring($powershell.Length + 1)) -ForegroundColor DarkCyan}
 elseif ($($_.FullName.Substring($powershell.Length + 1)) -match "(?i)\.psd1$") {Write-Host $($_.FullName.Substring($powershell.Length + 1)) -ForegroundColor DarkGray}
@@ -98,6 +98,27 @@ else {font gray; ""; return}}
 # Edit specified script.
 if ($resourcetype -eq "script" -and $action -eq "edit" -and (Test-Path $resource -PathType Leaf)) {edit $resource; return}}
 
+# Edit custom commands.
+function editcmd ($resource) {assets cmd edit $resource}
+sal -name ec -value editcmd -scope global
+
+# Create/edit a new or existing PowerShell module file.
+function editmodule ($script) {if ($script.length -le 1) {assets script edit; return}
+$path="$powershell\modules\$script\$script.psm1"
+if (Test-Path $path) {edit "$path"}
+if (!(Test-Path $path)) {Write-Host "`nPath '$path' does not exist." -ForegroundColor Yellow; $response=Read-Host "Create it now? (Y/N)";
+if ($response -match '^[Yy]') {New-Item -ItemType Directory -Path ([System.IO.Path]::GetDirectoryName($path)) -Force | Out-Null;
+New-Item -ItemType File -Path $path -Force | Out-Null}; ""}}
+sal -Name em -Value editmodule
+
+# Edit this Powershell profile.
+function editprofile{& edit $profile}
+sal -Name ep -Value editprofile
+
+# Edit custom scripts.
+function editscript ($resource) {assets script edit $resource}
+sal -name es -value editscript -scope global
+
 # View custom command details.
 function seecmd ($resource) {assets "cmd" "view" "$resource"}
 sal -name see -value seecmd -scope global
@@ -106,16 +127,8 @@ sal -name see -value seecmd -scope global
 function seescript ($resource) {assets script view $resource}
 sal -name ss -value seescript -scope global
 
-# Edit custom commands.
-function editcmd ($resource) {assets cmd edit $resource}
-sal -name ec -value editcmd -scope global
-
-# Edit custom scripts.
-function editscript ($resource) {assets script edit $resource}
-sal -name es -value editscript -scope global
-
-Export-ModuleMember -Function assets, seecmd, seescript, editcmd, editscript 
-Export-ModuleMember -Alias ec, es, see, ss 
+Export-ModuleMember -Function assets, editcmd, editmodule, editprofile, editscript, seecmd, seescript
+Export-ModuleMember -Alias ec, em, ep, es, see, ss
 
 <#
 ## Assets
@@ -139,4 +152,21 @@ To edit commands or scripts use:
 		• If no "resource" is specified, the function will display a menu of available functions from which to choose.
 	assets script edit "resource"
 		• If no "resource" is specified, the function will display a menu of available scripts from which to choose.
+## Other Commands
+
+Macros and aliases have been created for common functions within the Assets framework, in order to expedite common tasks:
+
+	• editprofile/ep - Edit this user's Powershell profile.
+
+Other commands, with an optional "resource" parameter:
+
+• Usage: <command> "resource"
+	• editcmd/ec 	 - Edit the script that hosts the command.
+	• editmodule/em  - Edit the module specified, or ask to create it, if it doesn't already exist.
+	• editscript/es	 - Edit a specific script.
+	• seecmd/see	 - View a specific command.
+	• seescript/ss	 - View a specific script.
+
+If no resource is provided at the command line, a menu will be presented for each of the above options.
+In the case of editmodule, this will consist of PSM1 and PSD1 files, but the editscript menu will also include PS1 files.
 ##>
