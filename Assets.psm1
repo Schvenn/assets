@@ -145,7 +145,7 @@ To view commands or scripts on screen in a contextualized format use:
 	assets script view "resource"
 		• If no "resource" is specified, the function will display a menu of available scripts from which to choose.
 		• While viewing long scripts, the output will be broken into pages, with options including:
-			Press [Enter] to continue, A to view the whole file, to Edit or Q to quit
+			Press [Enter] to continue, A to view the whole file, E to Edit or Q to quit
 
 To edit commands or scripts use:
 	assets cmd edit "resource"
