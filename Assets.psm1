@@ -61,7 +61,7 @@ else {""; return}}
 
 # Build content, starting with the PSD1 file if it exists, then proceeding to the script content.
 $configuration = [System.IO.Path]::Combine((Split-Path $resource), ([System.IO.Path]::GetFileNameWithoutExtension($resource)))+".psd1"
-if (Test-Path $configuration -ErrorAction SilentlyContinue) {$separator = "-" * 100; $configcontent = Get-Content $configuration; $resourcecontent = Get-Content $resource; $content = @(); $content += $configcontent; $content += $separator; $content += $resourcecontent; $content | ForEach-Object { $_ }}
+if (Test-Path $configuration -ErrorAction SilentlyContinue) {$separator = "-" * 100; $configcontent = Get-Content $configuration; $resourcecontent = Get-Content $resource; $content = @(); $content += $configcontent; $content += $separator; $content += $resourcecontent}
 else {$content = Get-Content $resource}
 
 ""; Write-Host -f green $resource; Write-Host -f yellow ("-"*100); $lineCount = 0; $pauseAfter = 30
