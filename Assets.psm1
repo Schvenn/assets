@@ -64,15 +64,24 @@ $configuration = [System.IO.Path]::Combine((Split-Path $resource), ([System.IO.P
 if ((Test-Path $configuration -ErrorAction SilentlyContinue) -and -not ([System.IO.Path]::GetExtension($resource) -match "\.psd1")) {$separator = "-" * 100; $configcontent = Get-Content $configuration; $resourcecontent = Get-Content $resource; $content = @(); $content += $configcontent; $content += $separator; $content += $resourcecontent}
 else {$content = Get-Content $resource}
 
-""; Write-Host -f green $resource; Write-Host -f yellow ("-"*100); $lineCount = 0; $pauseAfter = 30
-foreach ($line in $content) {if ($line -match '^<?#') {Write-Host $line -f yellow}
+# Display.
+$lineCount = 0; $pauseAfter = 30; $index = 0; $total = $content.Count; $exit = $false
+while ($index -lt $total -and -not $exit) {cls; Write-Host -f green $resource; Write-Host -f yellow ("-"*100)
+while ($lineCount -lt $pauseAfter -and $index -lt $total) {$line = $content[$index]
+if ($line -match '^<?#') {Write-Host $line -f yellow}
 elseif ($line -match '(?i)^function\s') {Write-Host $line -f cyan}
 elseif ($line -match '(?i)^sal\s') {Write-Host $line -f green}
 else {Write-Host $line -f white}
-$lineCount++
-if ($lineCount -ge $pauseAfter) {""; Write-Host -f green ("-"*100); [console]::foregroundcolor = "green"; $lineCount = 0; $input = Read-Host "Press [Enter] to continue, A to view the whole file, E to Edit or Q to quit"
-switch -Regex ($input) {'^(?i)q$' {[console]::foregroundcolor = "gray"; ""; return}; '^(?i)a$' {$pauseAfter = 10000}; '^(?i)e$' {[console]::foregroundcolor = "gray"; ""; edit $resource; return}}}}
-[console]::foregroundcolor = "gray"; Write-Host -f yellow ("-"*100); ""; return}
+$lineCount++; $index++}
+""; Write-Host -f green ("-"*100); $lineCount = 0
+if ($index -lt $total) {Write-Host -f red $message; Write-Host -f green "Press [Enter] to continue, A to view the whole file, E to Edit or Q to quit: " -n; $input = Read-Host}
+$message = $null
+switch -Regex ($input) {'^(?i)q$' {[console]::foregroundcolor = "gray"; ""; $exit = $true}
+'^(?i)a$' {$pauseAfter = 10000}
+'^(?i)e$' {[console]::foregroundcolor = "gray"; ""; edit $resource; return}
+'^$' {}
+default {if ($index -lt $total) {$message = "Invalid input. Continuing..."; continue} else {return}}}}
+Write-Host -f yellow ("-"*100); ""; return}
 
 # View commands menu.
 if ($resourcetype -eq "cmd" -and $action -eq "view" -and $resource.length -le 1) {Write-Host -f yellow "`nAvailable Functions`n"; $functions = Get-Command -CommandType Function; $filtered = $functions | Where-Object {$_.ScriptBlock.File -like "*Users*"}; $filtered | ForEach-Object {Write-Host -f cyan "$($filtered.IndexOf($_) + 1). " -n; Write-Host -f white "$($_.Name)"}; Write-Host -f white "`nSelect a function to " -n; [console]::foregroundcolor = "green"; $selection = Read-Host "VIEW"; [console]::foregroundcolor = "gray"
